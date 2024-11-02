@@ -60,6 +60,7 @@ fileInputEl.onchange = async (event) => {
   fetch(`${apiUrl}/upload-files`, {
     method: "POST",
     body: formData,
+    credentials: "include",
   })
     .then((response) => response.json())
     .then((data) => {

@@ -16,28 +16,23 @@ import { connectWallet } from "./utils/connectWallet";
 // );
 
 const sendUserData = async (publicKey, signature, walletType) => {
-  const userData = {
-    walletPublicKey: publicKey.address,
-    signature,
-    message: authMessage,
-    walletType,
-  };
+  const formData = new FormData();
+  formData.append("walletPublicKey", publicKey.address);
+  formData.append("signature", signature);
+  formData.append("walletType", walletType);
 
-  console.log(userData);
-  // fetch(`${apiUrl}/auth/wallet`, {
-  //   method: "POST",
-  //   headers: {
-  //     "Content-Type": "application/json",
-  //   },
-  //   body: JSON.stringify(userData),
-  // })
-  //   .then((response) => response.json())
-  //   .then((data) => {
-  //     console.log("Success:", data);
-  //   })
-  //   .catch((error) => {
-  //     console.error("Error:", error);
-  //   });
+  fetch(`${apiUrl}/auth/wallet`, {
+    method: "POST",
+    body: formData,
+    credentials: "include",
+  })
+    .then((response) => response.json())
+    .then((data) => {
+      console.log("Success:", data);
+    })
+    .catch((error) => {
+      console.error("Error:", error);
+    });
 };
 
 const handleConnectWallet = async (walletType) => {

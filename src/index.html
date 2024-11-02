@@ -10,14 +10,21 @@
     <script src="https://cdn.jsdelivr.net/npm/tweetnacl-util/nacl-util.min.js"></script>
   </head>
   <body>
-    <button id="metaMaskButton">Connect MetaMask</button>
-    <button id="trustWalletButton">Connect Trust Wallet</button>
-    <button id="phantomButton">Connect Phantom</button>
-    <button id="rabbyWalletButton">Connect Rabby Wallet</button>
+    <div style="display: flex; gap: 5px">
+      <button id="metaMaskButton">Connect MetaMask</button>
+      <button id="trustWalletButton">Connect Trust Wallet</button>
+      <button id="phantomButton">Connect Phantom</button>
+      <button id="rabbyWalletButton">Connect Rabby Wallet</button>
+    </div>
 
-    <div id="walletData"></div>
+    <div style="display: flex; gap: 5px; margin-top: 20px">
+      <input type="file" id="fileInput" multiple />
+      <button id="decryptBtn">Decrypt File</button>
+    </div>
 
-    <input type="file" id="fileInput" multiple />
-    <button id="decryptBtn">Decrypt File</button>
+    <div style="display: flex; gap: 5px; margin-top: 20px">
+      <button id="logoutBtn">Log Out</button>
+      <button id="checkAuthBtn">Check Auth</button>
+    </div>
   </body>
 </html>

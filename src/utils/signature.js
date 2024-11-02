@@ -2,6 +2,7 @@ import { ethers } from "ethers";
 
 export const signMessageEthereum = async (message) => {
   await window.ethereum.request({ method: "eth_requestAccounts" });
+
   const provider = new ethers.BrowserProvider(window.ethereum);
   const accounts = await provider.listAccounts();
   const etheriumPublicKey = accounts[0];
