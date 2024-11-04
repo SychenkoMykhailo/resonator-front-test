@@ -17,7 +17,7 @@ import { connectWallet } from "./utils/connectWallet";
 
 const sendUserData = async (publicKey, signature, walletType) => {
   const formData = new FormData();
-  formData.append("walletPublicKey", publicKey.address);
+  formData.append("walletPublicKey", publicKey);
   formData.append("signature", signature);
   formData.append("walletType", walletType);
 
@@ -41,7 +41,7 @@ const handleConnectWallet = async (walletType) => {
       walletType,
       authMessage
     );
-
+    console.log({ publicKey, signature });
     sendUserData(publicKey, signature, walletType);
   } catch (error) {
     console.error("Error connecting wallet:", error);

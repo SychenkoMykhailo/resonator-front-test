@@ -4,6 +4,9 @@ document.getElementById("logoutBtn").addEventListener("click", () => {
   fetch(`${apiUrl}/logout`, {
     method: "POST",
     credentials: "include",
+    headers: {
+      "ngrok-skip-browser-warning": "any",
+    },
   })
     .then((response) => response.json())
     .then((data) => {
@@ -18,6 +21,9 @@ document.getElementById("checkAuthBtn").addEventListener("click", () => {
   fetch(`${apiUrl}/check-auth`, {
     method: "GET",
     credentials: "include",
+    headers: {
+      "ngrok-skip-browser-warning": "any",
+    },
   })
     .then((response) => response.json())
     .then((data) => {

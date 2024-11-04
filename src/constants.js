@@ -13,7 +13,8 @@ export const etheriumWallets = [
 
 export const solanaWallets = [walletTypes.PHANTOM];
 
-export const apiUrl = "http://localhost:8000";
+// export const apiUrl = "http://localhost:8000";
+export const apiUrl = "https://gelding-nice-noticeably.ngrok-free.app";
 
 export const authMessage =
   "Please sign this message to authenticate with our service.";

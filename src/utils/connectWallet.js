@@ -5,6 +5,8 @@ import {
   checkSolanaWalletInsalled,
 } from "./checkWalletInstalled";
 
+import bs58 from "bs58";
+
 export async function connectWallet(walletType, message) {
   try {
     if (etheriumWallets.includes(walletType)) {
@@ -15,7 +17,7 @@ export async function connectWallet(walletType, message) {
       );
 
       return {
-        publicKey: etheriumPublicKey,
+        publicKey: etheriumPublicKey.address,
         signature,
         walletType,
       };
@@ -26,7 +28,7 @@ export async function connectWallet(walletType, message) {
 
       return {
         publicKey: solanaPublicKey,
-        signature,
+        signature: bs58.encode(signature.signature),
         walletType,
       };
     } else {
