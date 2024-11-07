@@ -2,16 +2,34 @@ import { connectWallet } from "./utils/connectWallet";
 
 import { encryptFile, decryptFile } from "./utils/fileCryption";
 
-import { arrayBufferToFile, fileToArrayBuffer } from "./helpers/file";
-
 import downloadFile from "./utils/downloadFile";
-import { apiUrl } from "./constants";
 
 const fileInputEl = document.getElementById("fileInput");
 const decryptBtnEl = document.getElementById("decryptBtn");
 
 const userWalletPublicKey = "0x71f8c733898679c2d0bd37ee7c59fbf69aada563";
 const userWalletType = "METAMASK";
+
+function fileToArrayBuffer(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+
+    reader.onload = function (event) {
+      resolve(event.target.result);
+    };
+
+    reader.onerror = function (event) {
+      reject(new Error("Failed to read file: " + event.target.error.message));
+    };
+
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+function arrayBufferToFile(arrayBuffer, fileName, mimeType) {
+  const blob = new Blob([arrayBuffer], { type: mimeType });
+  return new File([blob], fileName, { type: mimeType });
+}
 
 const generateFileSignatureMessage = (publicKey, uid) => {
   return `We use this message to secuerly encrypt and decrypt your files. Subscribe it with your wallet, please.
@@ -57,15 +75,15 @@ fileInputEl.onchange = async (event) => {
     formData.append(`files[${index}][mimeType]`, file.type);
   }
 
-  fetch(`${apiUrl}/upload-files`, {
+  const uploadResponse = await fetch(`${window.apiUrl}/upload-files`, {
     method: "POST",
     body: formData,
     credentials: "include",
-  })
-    .then((response) => response.json())
-    .then((data) => {
-      console.log("Success:", data);
-    });
+  });
+
+  const data = await uploadResponse.json();
+
+  console.log("Success:", data);
 
   // await emulateFileUpload({
   //   encryptedBlob,

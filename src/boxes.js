@@ -1,5 +1,3 @@
-import { apiUrl } from "./constants";
-
 const createBoxButtonEl = document.getElementById("createBox");
 
 const boxesContainerEl = document.getElementById("boxesContainer");
@@ -8,13 +6,16 @@ const boxEndpoint = "/box";
 
 const getAllBoxes = async () => {
   try {
-    const response = await fetch(`${apiUrl}${boxEndpoint}/get-all-boxes`, {
-      method: "GET",
-      credentials: "include",
-      headers: {
-        "ngrok-skip-browser-warning": "any",
-      },
-    });
+    const response = await fetch(
+      `${window.apiUrl}${boxEndpoint}/get-all-boxes`,
+      {
+        method: "GET",
+        credentials: "include",
+        headers: {
+          "ngrok-skip-browser-warning": "any",
+        },
+      }
+    );
 
     const data = await response.json();
 
@@ -27,7 +28,7 @@ const getAllBoxes = async () => {
 
 const getOneBox = async (boxId) => {
   try {
-    const response = await fetch(`${apiUrl}${boxEndpoint}?id=${boxId}`, {
+    const response = await fetch(`${window.apiUrl}${boxEndpoint}?id=${boxId}`, {
       method: "GET",
       credentials: "include",
       headers: {
@@ -46,7 +47,7 @@ const getOneBox = async (boxId) => {
 
 const createBox = async (boxName) => {
   try {
-    const response = await fetch(`${apiUrl}${boxEndpoint}/create`, {
+    const response = await fetch(`${window.apiUrl}${boxEndpoint}/create`, {
       method: "POST",
       credentials: "include",
       headers: {
@@ -66,7 +67,7 @@ const createBox = async (boxName) => {
 
 const deleteBox = async (boxId) => {
   try {
-    const response = await fetch(`${apiUrl}${boxEndpoint}?id=${boxId}`, {
+    const response = await fetch(`${window.apiUrl}${boxEndpoint}?id=${boxId}`, {
       method: "DELETE",
       credentials: "include",
       headers: {

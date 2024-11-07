@@ -7,6 +7,16 @@
     <title>Wallets Connect</title>
   </head>
   <body>
+    <h2>Files</h2>
+    <button id="getAllFiles">Get All Files</button>
+    <button id="getLastUploadedFiles">Get Last Uploaded Files</button>
+
+    <h2>Profile</h2>
+    <div style="display: flex; gap: 5px">
+      <button id="getUserBtn">Get User</button>
+    </div>
+
+    <h2>Connect Wallet</h2>
     <div style="display: flex; gap: 5px">
       <button id="metaMaskButton">Connect MetaMask</button>
       <button id="trustWalletButton">Connect Trust Wallet</button>
@@ -14,23 +24,865 @@
       <button id="rabbyWalletButton">Connect Rabby Wallet</button>
     </div>
 
+    <h2>File</h2>
     <div style="display: flex; gap: 5px; margin-top: 20px">
       <input type="file" id="fileInput" multiple />
       <button id="decryptBtn">Decrypt File</button>
     </div>
 
+    <h2>Log Out</h2>
     <div style="display: flex; gap: 5px; margin-top: 20px">
       <button id="logoutBtn">Log Out</button>
-      <button id="checkAuthBtn">Check Auth</button>
     </div>
 
+    <h2>Boxes</h2>
     <div style="display: flex; gap: 5px; margin-top: 20px">
       <button id="createBox">Create Box</button>
     </div>
-
     <div
-      style="display: flex; gap: 5px; margin-top: 20px; border: 1px solid blue"
+      style="
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+        margin-top: 20px;
+        border: 1px solid blue;
+      "
       id="boxesContainer"
     ></div>
+
+    <!-- Global Scripts -->
+    <script type="module" name="libs">
+      import bs58 from "https://cdn.jsdelivr.net/npm/bs58@6.0.0/+esm";
+      import { ethers } from "https://cdn.jsdelivr.net/npm/ethers@6.13.4/+esm";
+      import { Buffer } from "https://cdn.jsdelivr.net/npm/buffer@6.0.3/+esm";
+
+      window.Buffer = Buffer;
+      window.ethers = ethers;
+      window.bs58 = bs58;
+    </script>
+
+    <script type="module" name="constants">
+      const walletTypes = {
+        METAMASK: "METAMASK",
+        TRUST_WALLET: "TRUST_WALLET",
+        PHANTOM: "PHANTOM",
+        RABBY_WALLET: "RABBY_WALLET",
+      };
+
+      const etheriumWallets = [
+        walletTypes.METAMASK,
+        walletTypes.TRUST_WALLET,
+        walletTypes.RABBY_WALLET,
+      ];
+
+      const solanaWallets = [walletTypes.PHANTOM];
+
+      // const apiUrl = "https://gelding-nice-noticeably.ngrok-free.app";
+      const apiUrl = "http://localhost:8000";
+
+      const authMessage =
+        "Please sign this message to authenticate with our service.";
+
+      window.walletTypes = walletTypes;
+      window.etheriumWallets = etheriumWallets;
+      window.solanaWallets = solanaWallets;
+      window.apiUrl = apiUrl;
+      window.authMessage = authMessage;
+    </script>
+
+    <script type="module" name="global">
+      window.getUser = async () => {
+        try {
+          const response = await fetch(`${window.apiUrl}/user`, {
+            method: "GET",
+            credentials: "include",
+            headers: {
+              "ngrok-skip-browser-warning": "any",
+            },
+          });
+
+          const { user } = await response.json();
+
+          return user;
+        } catch (error) {
+          console.error(error);
+          return null;
+        }
+      };
+
+      const checkAuth = async () => {
+        try {
+          const response = await fetch(`${window.apiUrl}/check-auth`, {
+            method: "GET",
+            credentials: "include",
+            headers: {
+              "ngrok-skip-browser-warning": "any",
+            },
+          });
+
+          const { authenticated } = await response.json();
+
+          console.log({ authenticated });
+          window.isAuth = authenticated;
+
+          const user = await window.getUser();
+
+          window.user = user;
+        } catch (error) {
+          console.error(error);
+          window.isAuth = false;
+          window.user = null;
+        }
+      };
+
+      checkAuth();
+    </script>
+    <script type="module" name="util-signature">
+      window.signMessageEthereum = async (message) => {
+        await window.ethereum.request({ method: "eth_requestAccounts" });
+
+        const provider = new window.ethers.BrowserProvider(window.ethereum);
+        const accounts = await provider.listAccounts();
+        const etheriumPublicKey = accounts[0];
+
+        const signer = await provider.getSigner();
+        const signature = await signer.signMessage(message);
+
+        return { etheriumPublicKey, signature };
+      };
+
+      window.signMessageSolana = async (message) => {
+        await window.solana.connect();
+        const solanaPublicKey = window.solana.publicKey.toString();
+
+        const message_encoded = new TextEncoder().encode(message);
+
+        const signature = await window.solana.signMessage(message_encoded);
+
+        return { solanaPublicKey, signature };
+      };
+    </script>
+
+    <script type="module" name="util-connectWallet">
+      const checkSolanaWalletInsalled = (walletType) => {
+        const isPhantom = window.solana && window.solana.isPhantom;
+
+        if (walletType === window.walletTypes.PHANTOM && !isPhantom) {
+          throw new Error("Phantom wallet is not installed or not detected.");
+        }
+      };
+
+      const checkEtheriumWalletInstalled = (walletType) => {
+        const isMetaMask = window.ethereum && window.ethereum.isMetaMask;
+        const isRabby =
+          window.ethereum && window.ethere / user / balanceum.isRabby;
+        const isTrust = window.ethereum && window.ethereum.isTrust;
+
+        if (walletType === window.walletTypes.METAMASK && !isMetaMask) {
+          throw new Error("MetaMask is not installed or not detected.");
+        }
+        if (walletType === window.walletTypes.RABBY_WALLET && !isRabby) {
+          throw new Error("Rabby Wallet is not installed or not detected.");
+        }
+        if (walletType === window.walletTypes.TRUST_WALLET && !isTrust) {
+          throw new Error("Trust Wallet is not installed or not detected.");
+        }
+      };
+
+      window.connectWallet = async function connectWallet(walletType, message) {
+        try {
+          if (window.etheriumWallets.includes(walletType)) {
+            checkEtheriumWalletInstalled();
+
+            const { etheriumPublicKey, signature } =
+              await window.signMessageEthereum(message);
+
+            return {
+              publicKey: etheriumPublicKey.address,
+              signature,
+              walletType,
+            };
+          } else if (window.solanaWallets.includes(walletType)) {
+            checkSolanaWalletInsalled();
+
+            const { solanaPublicKey, signature } =
+              await window.signMessageSolana(message);
+
+            return {
+              publicKey: solanaPublicKey,
+              signature: window.bs58.encode(signature.signature),
+              walletType,
+            };
+          } else {
+            throw new Error("Unsupported wallet type");
+          }
+        } catch (error) {
+          console.error("Error connecting wallet:", error);
+          throw error;
+        }
+      };
+    </script>
+    <!-- ============================================= -->
+    <!-- Profile -->
+    <script type="module" name="profile">
+      const getUserBalance = async () => {
+        if (!window.isAuth) {
+          throw new Error("User is not authenticated");
+        }
+
+        try {
+          const response = await fetch(`${window.apiUrl}/user/balance`, {
+            method: "GET",
+            credentials: "include",
+            headers: {
+              "ngrok-skip-browser-warning": "any",
+            },
+          });
+
+          const data = await response.json();
+
+          return data;
+        } catch (error) {
+          console.error(error);
+          return null;
+        }
+      };
+
+      const logOut = async () => {
+        try {
+          const response = await fetch(`${window.apiUrl}/logout`, {
+            method: "POST",
+            credentials: "include",
+            headers: {
+              "ngrok-skip-browser-warning": "any",
+            },
+          });
+
+          const data = await response.json();
+
+          return data;
+        } catch (error) {
+          console.error(error);
+          return {};
+        }
+      };
+
+      document
+        .getElementById("logoutBtn")
+        .addEventListener("click", async () => {
+          const { message } = await logOut();
+
+          if (message) {
+            window.isAuth = false;
+            window.user = null;
+          }
+        });
+
+      document
+        .getElementById("getUserBtn")
+        .addEventListener("click", async () => {
+          const user = await window.getUser();
+
+          console.log("user: ", user);
+
+          const balance = await getUserBalance();
+
+          console.log("balance: ", balance);
+        });
+    </script>
+    <!-- ============================================= -->
+    <!-- Connect Wallet -->
+    <script type="module" name="connectWallet">
+      const sendUserData = async (publicKey, signature, walletType) => {
+        const formData = new FormData();
+        formData.append("walletPublicKey", publicKey);
+        formData.append("signature", signature);
+        formData.append("walletType", walletType);
+
+        try {
+          const response = await fetch(`${window.apiUrl}/auth/wallet`, {
+            method: "POST",
+            body: formData,
+            credentials: "include",
+          });
+
+          const data = await response.json();
+
+          console.log(data);
+        } catch (error) {
+          console.error(error);
+        }
+      };
+
+      const handleConnectWallet = async (walletType) => {
+        try {
+          const { publicKey, signature } = await window.connectWallet(
+            walletType,
+            window.authMessage
+          );
+
+          sendUserData(publicKey, signature, walletType);
+        } catch (error) {
+          console.error("Error connecting wallet:", error);
+        }
+      };
+
+      document
+        .getElementById("metaMaskButton")
+        .addEventListener("click", async () => {
+          await handleConnectWallet(window.walletTypes.METAMASK);
+        });
+      document
+        .getElementById("trustWalletButton")
+        .addEventListener("click", async () => {
+          await handleConnectWallet(window.walletTypes.TRUST_WALLET);
+        });
+      document
+        .getElementById("phantomButton")
+        .addEventListener("click", async () => {
+          await handleConnectWallet(window.walletTypes.PHANTOM);
+        });
+      document
+        .getElementById("rabbyWalletButton")
+        .addEventListener("click", async () => {
+          await handleConnectWallet(window.walletTypes.RABBY_WALLET);
+        });
+    </script>
+    <!-- ============================================= -->
+    <!-- Upload Files -->
+    <script type="module" name="uploadFiles">
+      const signatureToKeyIV = (signature) => {
+        const hexSignature = signature.slice(2);
+
+        const key = hexSignature.slice(0, 64);
+        const iv = hexSignature.slice(64, 96);
+        const keyBuffer = window.Buffer.from(key, "hex");
+        const ivBuffer = window.Buffer.from(iv, "hex");
+
+        return { keyBuffer, ivBuffer };
+      };
+
+      async function encryptFile(fileData, signature) {
+        const { keyBuffer, ivBuffer } = signatureToKeyIV(signature);
+
+        const cryptoKey = await window.crypto.subtle.importKey(
+          "raw",
+          keyBuffer,
+          "AES-GCM",
+          false,
+          ["encrypt"]
+        );
+
+        const encryptedData = await window.crypto.subtle.encrypt(
+          { name: "AES-GCM", iv: ivBuffer },
+          cryptoKey,
+          fileData
+        );
+
+        return new Uint8Array(encryptedData);
+      }
+
+      async function decryptFile(encryptedData, signature) {
+        const { keyBuffer, ivBuffer } = signatureToKeyIV(signature);
+
+        const cryptoKey = await window.crypto.subtle.importKey(
+          "raw",
+          keyBuffer,
+          "AES-GCM",
+          false,
+          ["decrypt"]
+        );
+
+        const decryptedData = await window.crypto.subtle.decrypt(
+          { name: "AES-GCM", iv: ivBuffer },
+          cryptoKey,
+          encryptedData
+        );
+
+        return new Uint8Array(decryptedData);
+      }
+
+      function downloadFile(blob, name) {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.style.display = "none";
+        a.href = url;
+        a.download = name;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+      }
+
+      const fileInputEl = document.getElementById("fileInput");
+      const decryptBtnEl = document.getElementById("decryptBtn");
+
+      function fileToArrayBuffer(file) {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+
+          reader.onload = function (event) {
+            resolve(event.target.result);
+          };
+
+          reader.onerror = function (event) {
+            reject(
+              new Error("Failed to read file: " + event.target.error.message)
+            );
+          };
+
+          reader.readAsArrayBuffer(file);
+        });
+      }
+
+      function arrayBufferToFile(arrayBuffer, fileName, mimeType) {
+        const blob = new Blob([arrayBuffer], { type: mimeType });
+        return new File([blob], fileName, { type: mimeType });
+      }
+
+      const generateFileSignatureMessage = (publicKey, uid) => {
+        return `We use this message to secuerly encrypt and decrypt your files. Subscribe it with your wallet, please.
+Wallet adress: ${publicKey}
+Unique Identificator: ${uid}`;
+      };
+
+      let uploadedFile = null;
+      const emulateFileUpload = async (fileData) => {
+        return new Promise((resolve) => {
+          setTimeout(() => {
+            uploadedFile = fileData;
+
+            resolve(uploadedFile);
+          }, 2000);
+        });
+      };
+
+      const getUploadedFile = () => uploadedFile;
+
+      fileInputEl.onchange = async (event) => {
+        const files = event.target.files;
+
+        // TODO validate files
+        const formData = new FormData();
+
+        const emcryptUid = new Date().getTime();
+
+        const message = generateFileSignatureMessage(
+          window.user.wallet.publicKey,
+          emcryptUid
+        );
+
+        const { signature } = await window.connectWallet(
+          window.user.wallet.walletProvider,
+          message
+        );
+
+        for (let index = 0; index < files.length; index++) {
+          const file = files[index];
+
+          const fileBuffer = await fileToArrayBuffer(file);
+          const encryptedUint8Array = await encryptFile(fileBuffer, signature);
+          const encryptedBlob = new Blob([encryptedUint8Array], {
+            type: file.type,
+          });
+
+          console.log(encryptedBlob);
+
+          formData.append(`files[${index}][encryptedBlob]`, encryptedBlob);
+          formData.append(`files[${index}][originalName]`, file.name);
+          formData.append(`files[${index}][encryptUid]`, emcryptUid);
+          formData.append(`files[${index}][mimeType]`, file.type);
+        }
+
+        // formData.append("boxId", ""); // add boxId if you want to upload files to specific box
+
+        const uploadResponse = await fetch(`${window.apiUrl}/upload-files`, {
+          method: "POST",
+          body: formData,
+          credentials: "include",
+        });
+
+        const data = await uploadResponse.json();
+
+        console.log("Files uploaded successfully:", data);
+
+        // await emulateFileUpload({
+        //   encryptedBlob,
+        //   uid,
+        //   mimeType: type,
+        //   originalName: name,
+        // });
+      };
+
+      decryptBtnEl.addEventListener("click", async () => {
+        const uploadedFile = getUploadedFile();
+        if (!uploadedFile) {
+          console.log("no uploadedFile");
+          return;
+        }
+
+        const message = generateFileSignatureMessage(
+          window.user.wallet.publicKey,
+          uploadedFile.uid
+        );
+
+        const { signature } = await window.connectWallet(
+          window.user.wallet.walletProvider,
+          message
+        );
+
+        const encryptedBuffer = await uploadedFile.encryptedBlob.arrayBuffer();
+
+        const decryptedBuffer = await decryptFile(encryptedBuffer, signature);
+
+        const decryptedFile = arrayBufferToFile(
+          decryptedBuffer,
+          uploadedFile.originalName,
+          uploadedFile.mimeType
+        );
+
+        console.log(decryptedFile);
+
+        downloadFile(decryptedFile, uploadedFile.originalName);
+      });
+    </script>
+    <!-- ============================================= -->
+    <!-- Boxes -->
+    <script type="module" name="boxes">
+      const createBoxButtonEl = document.getElementById("createBox");
+
+      const boxesContainerEl = document.getElementById("boxesContainer");
+
+      const boxEndpoint = "/box";
+
+      const getAllBoxes = async () => {
+        try {
+          const response = await fetch(
+            `${window.apiUrl}${boxEndpoint}/get-all-boxes`,
+            {
+              method: "GET",
+              credentials: "include",
+              headers: {
+                "ngrok-skip-browser-warning": "any",
+              },
+            }
+          );
+
+          const data = await response.json();
+
+          return { boxes: data?.data, total: data?.total };
+        } catch (error) {
+          console.error(error);
+          return [];
+        }
+      };
+
+      const getOneBox = async (boxId) => {
+        try {
+          const response = await fetch(
+            `${window.apiUrl}${boxEndpoint}?id=${boxId}`,
+            {
+              method: "GET",
+              credentials: "include",
+              headers: {
+                "ngrok-skip-browser-warning": "any",
+              },
+            }
+          );
+
+          const data = await response.json();
+
+          return data?.data;
+        } catch (error) {
+          console.error(error);
+          return null;
+        }
+      };
+
+      const createBox = async (boxName) => {
+        try {
+          const response = await fetch(
+            `${window.apiUrl}${boxEndpoint}/create`,
+            {
+              method: "POST",
+              credentials: "include",
+              headers: {
+                "Content-Type": "application/json",
+                "ngrok-skip-browser-warning": "any",
+              },
+              body: JSON.stringify({ boxName }),
+            }
+          );
+
+          const data = await response.json();
+
+          return data?.newBox;
+        } catch (error) {
+          console.error(error);
+          return null;
+        }
+      };
+
+      const deleteBox = async (boxId) => {
+        try {
+          const response = await fetch(
+            `${window.apiUrl}${boxEndpoint}/delete`,
+            {
+              method: "DELETE",
+              credentials: "include",
+              headers: {
+                "Content-Type": "application/json",
+                "ngrok-skip-browser-warning": "any",
+              },
+              body: JSON.stringify({ boxId }),
+            }
+          );
+
+          if (!response.ok) {
+            return false;
+          }
+
+          const data = await response.json();
+
+          return data?.result;
+        } catch (error) {
+          console.error(error);
+          return false;
+        }
+      };
+
+      const getBoxFiles = async (boxId) => {
+        try {
+          const response = await fetch(
+            `${window.apiUrl}/box-files/?id=${boxId}`,
+            {
+              method: "GET",
+              credentials: "include",
+              headers: {
+                "ngrok-skip-browser-warning": "any",
+              },
+            }
+          );
+
+          if (!response.ok) {
+            return null;
+          }
+
+          const data = await response.json();
+
+          return data?.files;
+        } catch (error) {
+          console.error(error);
+          return null;
+        }
+      };
+
+      const createBoxElement = ({
+        uid,
+        name,
+        fileIds,
+        size,
+        createdAt,
+        boxTransactionHash,
+        type,
+      }) => {
+        const createdAtTimestamp = new Date(
+          createdAt._seconds * 1000 + createdAt._nanoseconds / 1e6
+        );
+        const localDateString = createdAtTimestamp.toLocaleString();
+
+        const boxEl = document.createElement("div");
+        boxEl.innerHTML = `
+      <h5>Box ${uid}</h5>
+      <p>Name: ${name}</p>
+      <p>Files: ${fileIds}</p>
+      <p>Size: ${size}</p>
+      <p>Created At: ${localDateString}</p>
+      <p>Box Transaction Hash: ${boxTransactionHash}</p>
+      <p>Box Type: ${type}</p>
+    `;
+
+        const deleteBoxButtonEl = document.createElement("button");
+        deleteBoxButtonEl.innerHTML = "Delete Box";
+        deleteBoxButtonEl.addEventListener("click", async () => {
+          const isDeleted = await deleteBox(uid);
+
+          if (!isDeleted) {
+            alert("Failed to delete box");
+            return;
+          }
+
+          boxEl.remove();
+        });
+
+        boxEl.appendChild(deleteBoxButtonEl);
+
+        const getBoxButtonEl = document.createElement("button");
+        getBoxButtonEl.innerHTML = "Get and log box data";
+        getBoxButtonEl.addEventListener("click", async () => {
+          const box = await getOneBox(uid);
+
+          console.log(box);
+        });
+
+        boxEl.appendChild(getBoxButtonEl);
+
+        const getBoxFilesButtonEl = document.createElement("button");
+        getBoxFilesButtonEl.innerHTML = "Get and log box files";
+        getBoxFilesButtonEl.addEventListener("click", async () => {
+          const files = await getBoxFiles(uid);
+
+          console.log(files);
+        });
+
+        boxEl.appendChild(getBoxFilesButtonEl);
+
+        return boxEl;
+      };
+
+      const getAndRenderAllBoxes = async () => {
+        const { boxes, total } = await getAllBoxes();
+
+        if (!boxes) return;
+
+        boxes.forEach((box) => {
+          const boxEl = createBoxElement(box);
+
+          boxesContainerEl.appendChild(boxEl);
+        });
+      };
+
+      getAndRenderAllBoxes();
+
+      createBoxButtonEl.addEventListener("click", async () => {
+        const boxName = prompt("Enter box name");
+
+        const newBox = await createBox(boxName);
+
+        const boxEl = createBoxElement(newBox);
+
+        boxesContainerEl.appendChild(boxEl);
+      });
+    </script>
+
+    <script type="module" name="files">
+      const filesEndpoint = "/files";
+
+      const getAllFiles = async () => {
+        try {
+          const response = await fetch(`${window.apiUrl}${filesEndpoint}/all`, {
+            method: "GET",
+            credentials: "include",
+            headers: {
+              "ngrok-skip-browser-warning": "any",
+            },
+          });
+
+          const { files } = await response.json();
+
+          return files;
+        } catch (error) {
+          console.error(error);
+          return null;
+        }
+      };
+
+      const getAllFilesButtonEl = document.getElementById("getAllFiles");
+
+      getAllFilesButtonEl.addEventListener("click", async () => {
+        const files = await getAllFiles();
+
+        console.log("all files: ", files);
+      });
+
+      const deleteFile = async (fileId) => {
+        try {
+          const response = await fetch(
+            `${window.apiUrl}${filesEndpoint}/delete`,
+            {
+              method: "DELETE",
+              credentials: "include",
+              headers: {
+                "Content-Type": "application/json",
+                "ngrok-skip-browser-warning": "any",
+              },
+              body: JSON.stringify({ fileId }),
+            }
+          );
+
+          if (!response.ok) {
+            return false;
+          }
+
+          const data = await response.json();
+
+          return data?.result;
+        } catch (error) {
+          console.error(error);
+          return false;
+        }
+      };
+
+      const getFileById = async (fileId) => {
+        try {
+          const response = await fetch(
+            `${window.apiUrl}${filesEndpoint}/file?id=${fileId}`,
+            {
+              method: "GET",
+              credentials: "include",
+              headers: {
+                "ngrok-skip-browser-warning": "any",
+              },
+            }
+          );
+
+          if (!response.ok) {
+            return null;
+          }
+
+          const { file } = await response.json();
+
+          return file;
+        } catch (error) {
+          console.error(error);
+          return null;
+        }
+      };
+
+      const getLasUploadedFiles = async () => {
+        try {
+          const response = await fetch(
+            `${window.apiUrl}${filesEndpoint}/last-uploaded`,
+            {
+              method: "GET",
+              credentials: "include",
+              headers: {
+                "ngrok-skip-browser-warning": "any",
+              },
+            }
+          );
+
+          if (!response.ok) {
+            return null;
+          }
+
+          const { files } = await response.json();
+
+          return files;
+        } catch (error) {
+          console.error(error);
+          return null;
+        }
+      };
+
+      const getLastUploadedFilesButtonEl = document.getElementById(
+        "getLastUploadedFiles"
+      );
+
+      getLastUploadedFilesButtonEl.addEventListener("click", async () => {
+        const files = await getLasUploadedFiles();
+
+        console.log("Last Uploaded Files: ", files);
+      });
+    </script>
   </body>
 </html>
