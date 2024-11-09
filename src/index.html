@@ -10,6 +10,8 @@
     <h2>Files</h2>
     <button id="getAllFiles">Get All Files</button>
     <button id="getLastUploadedFiles">Get Last Uploaded Files</button>
+    <button id="shareFile">Share File</button>
+    <button id="transferFile">Transfer File</button>
 
     <h2>Profile</h2>
     <div style="display: flex; gap: 5px">
@@ -38,6 +40,8 @@
     <h2>Boxes</h2>
     <div style="display: flex; gap: 5px; margin-top: 20px">
       <button id="createBox">Create Box</button>
+      <button id="shareBox">Share Box</button>
+      <button id="transferBox">Transfer Box</button>
     </div>
     <div
       style="
@@ -78,7 +82,7 @@
       const solanaWallets = [walletTypes.PHANTOM];
 
       // const apiUrl = "https://gelding-nice-noticeably.ngrok-free.app";
-      const apiUrl = "http://localhost:8000";
+      const apiUrl = "http://localhost:9000";
 
       const authMessage =
         "Please sign this message to authenticate with our service.";
@@ -174,8 +178,7 @@
 
       const checkEtheriumWalletInstalled = (walletType) => {
         const isMetaMask = window.ethereum && window.ethereum.isMetaMask;
-        const isRabby =
-          window.ethereum && window.ethere / user / balanceum.isRabby;
+        const isRabby = window.ethereum && window.ethereum.isRabby;
         const isTrust = window.ethereum && window.ethereum.isTrust;
 
         if (walletType === window.walletTypes.METAMASK && !isMetaMask) {
@@ -220,6 +223,102 @@
           console.error("Error connecting wallet:", error);
           throw error;
         }
+      };
+    </script>
+
+    <script type="module" name="util-cryption">
+      window.encryptFile = async function (fileData, signature) {
+        const { keyBuffer, ivBuffer } = signatureToKeyIV(signature);
+
+        const cryptoKey = await window.crypto.subtle.importKey(
+          "raw",
+          keyBuffer,
+          "AES-GCM",
+          false,
+          ["encrypt"]
+        );
+
+        const encryptedData = await window.crypto.subtle.encrypt(
+          { name: "AES-GCM", iv: ivBuffer },
+          cryptoKey,
+          fileData
+        );
+
+        return new Uint8Array(encryptedData);
+      };
+
+      window.decryptFile = async function (encryptedData, signature) {
+        const { keyBuffer, ivBuffer } = signatureToKeyIV(signature);
+
+        const cryptoKey = await window.crypto.subtle.importKey(
+          "raw",
+          keyBuffer,
+          "AES-GCM",
+          false,
+          ["decrypt"]
+        );
+
+        const decryptedData = await window.crypto.subtle.decrypt(
+          { name: "AES-GCM", iv: ivBuffer },
+          cryptoKey,
+          encryptedData
+        );
+
+        return new Uint8Array(decryptedData);
+      };
+
+      window.generateFakeCryptoSignature = function () {
+        const randomValues = new Uint8Array(64);
+        window.crypto.getRandomValues(randomValues);
+
+        const hexSignature = Array.from(randomValues)
+          .map((b) => b.toString(16).padStart(2, "0"))
+          .join("");
+
+        return `0x${hexSignature}`;
+      };
+
+      window.recryptFile = async function (file, specificFakeSignature) {
+        let decryptKey = file.sharedKey || "";
+
+        if (!decryptKey) {
+          const message = window.generateFileSignatureMessage(
+            window.user.wallet.publicKey,
+            file.encryptUid
+          );
+
+          const { signature } = await window.connectWallet(
+            window.user.wallet.walletProvider,
+            message
+          );
+
+          decryptKey = signature;
+        }
+
+        const encryptedBuffer = window.Buffer.from(file.fileBase64, "base64");
+
+        const decryptedUint8Array = await window.decryptFile(
+          encryptedBuffer,
+          decryptKey
+        );
+
+        const fakeSignature =
+          specificFakeSignature || window.generateFakeCryptoSignature();
+
+        const reEncryptedUint8Array = await window.encryptFile(
+          decryptedUint8Array,
+          fakeSignature
+        );
+
+        const reEncryptedFileBase64 = btoa(
+          String.fromCharCode(...reEncryptedUint8Array)
+        );
+
+        return {
+          ...file,
+          sharedKey: fakeSignature,
+          fileBase64: reEncryptedFileBase64,
+        };
       };
     </script>
     <!-- ============================================= -->
@@ -362,46 +461,6 @@
         return { keyBuffer, ivBuffer };
       };
 
-      async function encryptFile(fileData, signature) {
-        const { keyBuffer, ivBuffer } = signatureToKeyIV(signature);
-
-        const cryptoKey = await window.crypto.subtle.importKey(
-          "raw",
-          keyBuffer,
-          "AES-GCM",
-          false,
-          ["encrypt"]
-        );
-
-        const encryptedData = await window.crypto.subtle.encrypt(
-          { name: "AES-GCM", iv: ivBuffer },
-          cryptoKey,
-          fileData
-        );
-
-        return new Uint8Array(encryptedData);
-      }
-
-      async function decryptFile(encryptedData, signature) {
-        const { keyBuffer, ivBuffer } = signatureToKeyIV(signature);
-
-        const cryptoKey = await window.crypto.subtle.importKey(
-          "raw",
-          keyBuffer,
-          "AES-GCM",
-          false,
-          ["decrypt"]
-        );
-
-        const decryptedData = await window.crypto.subtle.decrypt(
-          { name: "AES-GCM", iv: ivBuffer },
-          cryptoKey,
-          encryptedData
-        );
-
-        return new Uint8Array(decryptedData);
-      }
-
       function downloadFile(blob, name) {
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement("a");
@@ -434,16 +493,21 @@
         });
       }
 
-      function arrayBufferToFile(arrayBuffer, fileName, mimeType) {
+      window.arrayBufferToFile = function arrayBufferToFile(
+        arrayBuffer,
+        fileName,
+        mimeType
+      ) {
         const blob = new Blob([arrayBuffer], { type: mimeType });
         return new File([blob], fileName, { type: mimeType });
-      }
-
-      const generateFileSignatureMessage = (publicKey, uid) => {
-        return `We use this message to secuerly encrypt and decrypt your files. Subscribe it with your wallet, please.
-Wallet adress: ${publicKey}
-Unique Identificator: ${uid}`;
       };
+
+      window.generateFileSignatureMessage =
+        function generateFileSignatureMessage(publicKey, uid) {
+          return `We use this message to secuerly encrypt and decrypt your files. Subscribe it with your wallet, please.
+      Wallet adress: ${publicKey}
+      Unique Identificator: ${uid}`;
+        };
 
       let uploadedFile = null;
       const emulateFileUpload = async (fileData) => {
@@ -480,7 +544,10 @@ Unique Identificator: ${uid}`;
           const file = files[index];
 
           const fileBuffer = await fileToArrayBuffer(file);
-          const encryptedUint8Array = await encryptFile(fileBuffer, signature);
+          const encryptedUint8Array = await window.encryptFile(
+            fileBuffer,
+            signature
+          );
           const encryptedBlob = new Blob([encryptedUint8Array], {
             type: file.type,
           });
@@ -522,7 +589,7 @@ Unique Identificator: ${uid}`;
 
         const message = generateFileSignatureMessage(
           window.user.wallet.publicKey,
-          uploadedFile.uid
+          uploadedFile.encryptUid
         );
 
         const { signature } = await window.connectWallet(
@@ -532,9 +599,12 @@ Unique Identificator: ${uid}`;
 
         const encryptedBuffer = await uploadedFile.encryptedBlob.arrayBuffer();
 
-        const decryptedBuffer = await decryptFile(encryptedBuffer, signature);
+        const decryptedBuffer = await window.decryptFile(
+          encryptedBuffer,
+          signature
+        );
 
-        const decryptedFile = arrayBufferToFile(
+        const decryptedFile = window.arrayBufferToFile(
           decryptedBuffer,
           uploadedFile.originalName,
           uploadedFile.mimeType
@@ -650,10 +720,12 @@ Unique Identificator: ${uid}`;
         }
       };
 
-      const getBoxFiles = async (boxId) => {
+      const getBoxFiles = async (boxId, isLong) => {
         try {
+          const params = isLong ? `id=${boxId}&is_long=true` : `id=${boxId}`;
+
           const response = await fetch(
-            `${window.apiUrl}/box-files/?id=${boxId}`,
+            `${window.apiUrl}/box-files/?${params}`,
             {
               method: "GET",
               credentials: "include",
@@ -677,7 +749,7 @@ Unique Identificator: ${uid}`;
       };
 
       const createBoxElement = ({
-        uid,
+        id,
         name,
         fileIds,
         size,
@@ -692,14 +764,14 @@ Unique Identificator: ${uid}`;
 
         const boxEl = document.createElement("div");
         boxEl.innerHTML = `
-      <h5>Box ${uid}</h5>
-      <p>Name: ${name}</p>
-      <p>Files: ${fileIds}</p>
-      <p>Size: ${size}</p>
-      <p>Created At: ${localDateString}</p>
-      <p>Box Transaction Hash: ${boxTransactionHash}</p>
-      <p>Box Type: ${type}</p>
-    `;
+            <h5>Box ${id}</h5>
+            <p>Name: ${name}</p>
+            <p>Files: ${fileIds}</p>
+            <p>Size: ${size}</p>
+            <p>Created At: ${localDateString}</p>
+            <p>Box Transaction Hash: ${boxTransactionHash}</p>
+            <p>Box Type: ${type}</p>
+          `;
 
         const deleteBoxButtonEl = document.createElement("button");
         deleteBoxButtonEl.innerHTML = "Delete Box";
@@ -762,6 +834,124 @@ Unique Identificator: ${uid}`;
 
         boxesContainerEl.appendChild(boxEl);
       });
+
+      const shareOrTransferBox = async (
+        action,
+        shareWalletPublicKey,
+        boxId,
+        rectyptedFiles
+      ) => {
+        try {
+          const endpoint =
+            action === "share"
+              ? "/share"
+              : action === "transfer"
+              ? "/transfer"
+              : "";
+
+          if (endpoint) {
+            console.error("shareOrTransferBox: Unsupported action:", action);
+            return;
+          }
+
+          const response = await fetch(
+            `${window.apiUrl}${boxEndpoint}${endpoint}`,
+            {
+              method: "POST",
+              credentials: "include",
+              headers: {
+                "Content-Type": "application/json",
+                "ngrok-skip-browser-warning": "any",
+              },
+              body: JSON.stringify({
+                shareWalletPublicKey,
+                boxId,
+                rectyptedFiles,
+              }),
+            }
+          );
+
+          if (!response.ok) {
+            return false;
+          }
+
+          const data = await response.json();
+
+          return data?.result;
+        } catch (error) {
+          console.error(error);
+          return false;
+        }
+      };
+
+      const handleShareOrTransferBox = async (
+        action,
+        shareWalletPublicKey,
+        box
+      ) => {
+        const fileIds = box.fileIds;
+
+        let recryptedFiles = [];
+
+        if (fileIds.length > 0) {
+          const files = await getBoxFiles(box.id, true);
+
+          const specificFakeSignature = window.generateFakeCryptoSignature();
+
+          const recryptedFilesPromises = files.map(async (file) => {
+            const recryptedFile = await window.recryptFile(
+              file,
+              specificFakeSignature
+            );
+            return recryptedFile;
+          });
+
+          recryptedFiles = await Promise.all(recryptedFilesPromises);
+        }
+
+        const recryptedFilesShort = recryptedFiles.map(
+          ({ id, fileBase64, sharedKey }) => ({
+            id,
+            fileBase64,
+            sharedKey,
+          })
+        );
+
+        if (recryptedFilesShort.length > 0) {
+          shareOrTransferBox(
+            action,
+            shareWalletPublicKey,
+            box.id,
+            recryptedFilesShort
+          );
+        } else {
+          shareOrTransferBox(action, shareWalletPublicKey, box.id);
+        }
+      };
+
+      document
+        .getElementById("shareBox")
+        .addEventListener("click", async () => {
+          const shareWalletPublicKey =
+            "6VKVUR7mJZh1GoBTWKuUQVQYbL86DYRVuxfcPEnYkDD5";
+          const boxId = "rg9SY9fEgQj8ax4QB2OB";
+
+          const box = await getOneBox(boxId);
+
+          handleShareOrTransferBox("share", shareWalletPublicKey, box);
+        });
+
+      document
+        .getElementById("transferBox")
+        .addEventListener("click", async () => {
+          const shareWalletPublicKey =
+            "6VKVUR7mJZh1GoBTWKuUQVQYbL86DYRVuxfcPEnYkDD5";
+          const boxId = "rg9SY9fEgQj8ax4QB2OB";
+
+          const box = await getOneBox(boxId);
+
+          handleShareBox("transfer", shareWalletPublicKey, box);
+        });
     </script>
 
     <script type="module" name="files">
@@ -883,6 +1073,118 @@ Unique Identificator: ${uid}`;
 
         console.log("Last Uploaded Files: ", files);
       });
+
+      const shareFile = async (
+        shareWalletPublicKey,
+        fileId,
+        fileBase64,
+        sharedKey
+      ) => {
+        try {
+          const response = await fetch(
+            `${window.apiUrl}${filesEndpoint}/share`,
+            {
+              method: "POST",
+              credentials: "include",
+              headers: {
+                "Content-Type": "application/json",
+                "ngrok-skip-browser-warning": "any",
+              },
+              body: JSON.stringify({
+                shareWalletPublicKey,
+                fileId,
+                fileBase64,
+                sharedKey,
+              }),
+            }
+          );
+
+          if (!response.ok) {
+            return false;
+          }
+
+          const data = await response.json();
+
+          return data?.result;
+        } catch (error) {
+          console.error(error);
+          return false;
+        }
+      };
+
+      const handleShareFile = async (shareWalletPublicKey, file) => {
+        const { fileBase64, sharedKey } = window.recryptFile(file);
+
+        shareFile(shareWalletPublicKey, file.id, fileBase64, sharedKey);
+      };
+
+      document
+        .getElementById("shareFile")
+        .addEventListener("click", async () => {
+          const shareWalletPublicKey =
+            "6VKVUR7mJZh1GoBTWKuUQVQYbL86DYRVuxfcPEnYkDD5";
+          const fileId = "8qU9HYAGHf17EK3RBWDQ";
+
+          const file = await getFileById(fileId);
+
+          handleShareFile(shareWalletPublicKey, file);
+        });
+
+      const transferFile = async (
+        transferWalletPublicKey,
+        fileId,
+        fileBase64,
+        sharedKey
+      ) => {
+        try {
+          const response = await fetch(
+            `${window.apiUrl}${filesEndpoint}/transfer`,
+            {
+              method: "POST",
+              credentials: "include",
+              headers: {
+                "Content-Type": "application/json",
+                "ngrok-skip-browser-warning": "any",
+              },
+              body: JSON.stringify({
+                transferWalletPublicKey,
+                fileId,
+                fileBase64,
+                sharedKey,
+              }),
+            }
+          );
+
+          if (!response.ok) {
+            return false;
+          }
+
+          const data = await response.json();
+
+          return data?.result;
+        } catch (error) {
+          console.error(error);
+          return false;
+        }
+      };
+
+      const handleTransferFile = async (transferWalletPublicKey, file) => {
+        const { fileBase64, sharedKey } = window.recryptFile(file);
+
+        transferFile(transferWalletPublicKey, file.id, fileBase64, sharedKey);
+      };
+
+      document
+        .getElementById("transferFile")
+        .addEventListener("click", async () => {
+          const transferWalletPublicKey =
+            "6VKVUR7mJZh1GoBTWKuUQVQYbL86DYRVuxfcPEnYkDD5";
+          const fileId = "8qU9HYAGHf17EK3RBWDQ";
+
+          const file = await getFileById(fileId);
+
+          handleTransferFile(transferWalletPublicKey, file);
+        });
     </script>
   </body>
 </html>
